@@ -367,6 +367,8 @@ pub struct AppSettings {
     pub custom_transcription_endpoint: Option<String>,
     #[serde(default = "default_custom_transcription_model")]
     pub custom_transcription_model: String,
+    #[serde(default)]
+    pub custom_transcription_api_key: Option<String>,
     #[serde(default = "default_overlay_position")]
     pub overlay_position: OverlayPosition,
     #[serde(default = "default_debug_mode")]
@@ -457,7 +459,7 @@ fn default_autostart_enabled() -> bool {
 }
 
 fn default_update_checks_enabled() -> bool {
-    true
+    false
 }
 
 fn default_selected_language() -> String {
@@ -465,7 +467,7 @@ fn default_selected_language() -> String {
 }
 
 fn default_custom_transcription_model() -> String {
-    "whisper-1".to_string()
+    "mistralai/voxtral-mini-transcribe".to_string()
 }
 
 fn default_overlay_position() -> OverlayPosition {
@@ -789,7 +791,8 @@ pub fn get_default_settings() -> AppSettings {
         translate_to_english: false,
         selected_language: "auto".to_string(),
         custom_transcription_endpoint: None,
-        custom_transcription_model: "whisper-1".to_string(),
+        custom_transcription_model: "mistralai/voxtral-mini-transcribe".to_string(),
+        custom_transcription_api_key: None,
         overlay_position: default_overlay_position(),
         debug_mode: false,
         log_level: default_log_level(),

@@ -15,9 +15,13 @@ export const CustomTranscriptionEndpoint: React.FC<CustomTranscriptionEndpointPr
     const { getSetting, updateSetting, isUpdating } = useSettings();
 
     const endpoint = getSetting("custom_transcription_endpoint") || "";
-    const model = getSetting("custom_transcription_model") || "whisper-1";
+    const model =
+      getSetting("custom_transcription_model") ||
+      "mistralai/voxtral-mini-transcribe";
+    const apiKey = getSetting("custom_transcription_api_key") || "";
     const [endpointValue, setEndpointValue] = useState(endpoint);
     const [modelValue, setModelValue] = useState(model);
+    const [apiKeyValue, setApiKeyValue] = useState(apiKey);
 
     useEffect(() => {
       setEndpointValue(endpoint);
@@ -28,24 +32,28 @@ export const CustomTranscriptionEndpoint: React.FC<CustomTranscriptionEndpointPr
     }, [model]);
 
     useEffect(() => {
-      const timeout = window.setTimeout(() => {
-        if (endpointValue !== endpoint) {
-          updateSetting("custom_transcription_endpoint", endpointValue || null);
-        }
-      }, 400);
+      setApiKeyValue(apiKey);
+    }, [apiKey]);
 
-      return () => window.clearTimeout(timeout);
-    }, [endpointValue, endpoint, updateSetting]);
+    const handleEndpointChange = (
+      event: React.ChangeEvent<HTMLInputElement>,
+    ) => {
+      const value = event.target.value;
+      setEndpointValue(value);
+      updateSetting("custom_transcription_endpoint", value || null);
+    };
 
-    useEffect(() => {
-      const timeout = window.setTimeout(() => {
-        if (modelValue !== model) {
-          updateSetting("custom_transcription_model", modelValue);
-        }
-      }, 400);
+    const handleModelChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+      const value = event.target.value;
+      setModelValue(value);
+      updateSetting("custom_transcription_model", value);
+    };
 
-      return () => window.clearTimeout(timeout);
-    }, [modelValue, model, updateSetting]);
+    const handleApiKeyChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+      const value = event.target.value;
+      setApiKeyValue(value);
+      updateSetting("custom_transcription_api_key", value || null);
+    };
 
     return (
       <SettingContainer
@@ -63,7 +71,7 @@ export const CustomTranscriptionEndpoint: React.FC<CustomTranscriptionEndpointPr
             <Input
               type="url"
               value={endpointValue}
-              onChange={(event) => setEndpointValue(event.target.value)}
+              onChange={handleEndpointChange}
               placeholder={t(
                 "settings.advanced.customTranscription.endpointPlaceholder",
               )}
@@ -78,11 +86,26 @@ export const CustomTranscriptionEndpoint: React.FC<CustomTranscriptionEndpointPr
             <Input
               type="text"
               value={modelValue}
-              onChange={(event) => setModelValue(event.target.value)}
+              onChange={handleModelChange}
               placeholder={t(
                 "settings.advanced.customTranscription.modelPlaceholder",
               )}
               aria-busy={isUpdating("custom_transcription_model")}
+              className="w-full"
+            />
+          </label>
+          <label className="space-y-1 sm:col-span-2">
+            <span className="text-sm font-medium">
+              {t("settings.advanced.customTranscription.apiKeyLabel")}
+            </span>
+            <Input
+              type="password"
+              value={apiKeyValue}
+              onChange={handleApiKeyChange}
+              placeholder={t(
+                "settings.advanced.customTranscription.apiKeyPlaceholder",
+              )}
+              aria-busy={isUpdating("custom_transcription_api_key")}
               className="w-full"
             />
           </label>

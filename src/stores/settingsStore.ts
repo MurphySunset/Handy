@@ -115,6 +115,8 @@ const settingUpdaters: {
     commands.changeCustomTranscriptionEndpointSetting(value as string | null),
   custom_transcription_model: (value) =>
     commands.changeCustomTranscriptionModelSetting(value as string),
+  custom_transcription_api_key: (value) =>
+    commands.changeCustomTranscriptionApiKeySetting(value as string | null),
   overlay_position: (value) =>
     commands.changeOverlayPositionSetting(value as string),
   debug_mode: (value) => commands.changeDebugModeSetting(value as boolean),

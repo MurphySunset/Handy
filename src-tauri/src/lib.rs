@@ -26,6 +26,7 @@ use specta_typescript::{BigIntExportBehavior, Typescript};
 use tauri_specta::{collect_commands, collect_events, Builder};
 
 use env_filter::Builder as EnvFilterBuilder;
+use log::warn;
 use managers::audio::AudioRecordingManager;
 use managers::history::HistoryManager;
 use managers::model::ModelManager;
@@ -338,6 +339,7 @@ pub fn run(cli_args: CliArgs) {
             shortcut::change_selected_language_setting,
             shortcut::change_custom_transcription_endpoint_setting,
             shortcut::change_custom_transcription_model_setting,
+            shortcut::change_custom_transcription_api_key_setting,
             shortcut::change_overlay_position_setting,
             shortcut::change_debug_mode_setting,
             shortcut::change_word_correction_threshold_setting,
@@ -434,12 +436,18 @@ pub fn run(cli_args: CliArgs) {
         .events(collect_events![managers::history::HistoryUpdatePayload,]);
 
     #[cfg(debug_assertions)] // <- Only export on non-release builds
-    specta_builder
-        .export(
+    {
+        let bindings_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("src")
+            .join("bindings.ts");
+        if let Err(error) = specta_builder.export(
             Typescript::default().bigint(BigIntExportBehavior::Number),
-            "../src/bindings.ts",
-        )
-        .expect("Failed to export typescript bindings");
+            bindings_path,
+        ) {
+            warn!("Failed to export typescript bindings: {}", error);
+        }
+    }
 
     let invoke_handler = specta_builder.invoke_handler();
 
@@ -516,7 +524,7 @@ pub fn run(cli_args: CliArgs) {
             // for portable mode (redirects WebView2 cache to portable Data dir)
             let mut win_builder =
                 tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App("/".into()))
-                    .title("Handy")
+                    .title("Handy OpenRouter")
                     .inner_size(680.0, 570.0)
                     .min_inner_size(680.0, 570.0)
                     .resizable(true)

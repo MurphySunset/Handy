@@ -547,6 +547,14 @@ pub fn change_custom_transcription_endpoint_setting(
     } else {
         Some(endpoint)
     };
+    info!(
+        "Custom transcription endpoint {}",
+        if settings.custom_transcription_endpoint.is_some() {
+            "configured"
+        } else {
+            "cleared"
+        }
+    );
     settings::write_settings(&app, settings);
     Ok(())
 }
@@ -559,6 +567,35 @@ pub fn change_custom_transcription_model_setting(
 ) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     settings.custom_transcription_model = model.trim().to_string();
+    info!(
+        "Custom transcription model set to '{}'",
+        settings.custom_transcription_model
+    );
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_custom_transcription_api_key_setting(
+    app: AppHandle,
+    api_key: Option<String>,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    let api_key = api_key.unwrap_or_default().trim().to_string();
+    settings.custom_transcription_api_key = if api_key.is_empty() {
+        None
+    } else {
+        Some(api_key)
+    };
+    info!(
+        "Custom transcription API key {}",
+        if settings.custom_transcription_api_key.is_some() {
+            "configured"
+        } else {
+            "cleared"
+        }
+    );
     settings::write_settings(&app, settings);
     Ok(())
 }

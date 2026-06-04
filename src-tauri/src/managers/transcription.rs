@@ -6,6 +6,7 @@ use crate::settings::{
     OrtAcceleratorSetting, WhisperAcceleratorSetting,
 };
 use anyhow::Result;
+use base64::{engine::general_purpose, Engine as _};
 use log::{debug, error, info, warn};
 use serde::Serialize;
 use specta::Type;
@@ -454,10 +455,26 @@ impl TranscriptionManager {
             .custom_transcription_endpoint
             .as_deref()
             .unwrap_or_default()
-            .trim();
+            .trim()
+            .to_string();
         if endpoint.is_empty() {
             return Err(anyhow::anyhow!("Custom transcription endpoint is empty"));
         }
+        info!(
+            "Using custom transcription endpoint with model '{}' (API key: {})",
+            settings.custom_transcription_model.trim(),
+            if settings
+                .custom_transcription_api_key
+                .as_deref()
+                .map(str::trim)
+                .filter(|api_key| !api_key.is_empty())
+                .is_some()
+            {
+                "configured"
+            } else {
+                "missing"
+            }
+        );
 
         let mut path = std::env::temp_dir();
         path.push(format!(
@@ -469,7 +486,7 @@ impl TranscriptionManager {
         save_wav_file(&path, audio)?;
 
         let model = if settings.custom_transcription_model.trim().is_empty() {
-            "whisper-1".to_string()
+            "mistralai/voxtral-mini-transcribe".to_string()
         } else {
             settings.custom_transcription_model.trim().to_string()
         };
@@ -479,24 +496,67 @@ impl TranscriptionManager {
             Some(settings.selected_language.clone())
         };
 
-        let result = (|| -> Result<String> {
-            let mut form = reqwest::blocking::multipart::Form::new()
-                .file("file", &path)?
-                .text("model", model)
-                .text("response_format", "json");
+        let api_key = settings
+            .custom_transcription_api_key
+            .as_deref()
+            .map(str::trim)
+            .filter(|api_key| !api_key.is_empty())
+            .map(ToString::to_string);
+        let request_path = path.clone();
 
-            if let Some(language) = language {
-                form = form.text("language", language);
-            }
-
+        // reqwest::blocking creates and drops an internal Tokio runtime. Running it directly from
+        // Handy's async worker can panic when that runtime is dropped, so isolate the HTTP call on
+        // a plain OS thread.
+        let result = thread::spawn(move || -> Result<String> {
             let client = reqwest::blocking::Client::builder()
                 .timeout(Duration::from_secs(300))
                 .build()?;
-            let response = client.post(endpoint).multipart(form).send()?;
+
+            let is_openrouter_stt =
+                endpoint.contains("openrouter.ai") && endpoint.contains("/audio/transcriptions");
+
+            let mut request = if is_openrouter_stt {
+                info!("Sending custom transcription request as OpenRouter JSON STT payload");
+                let audio_base64 = general_purpose::STANDARD.encode(std::fs::read(&request_path)?);
+                let mut payload = serde_json::json!({
+                    "model": model,
+                    "input_audio": {
+                        "data": audio_base64,
+                        "format": "wav"
+                    }
+                });
+
+                if let Some(language) = language {
+                    payload["language"] = serde_json::Value::String(language);
+                }
+
+                client.post(endpoint).json(&payload)
+            } else {
+                let mut form = reqwest::blocking::multipart::Form::new()
+                    .file("file", &request_path)?
+                    .text("model", model)
+                    .text("response_format", "json");
+
+                if let Some(language) = language {
+                    form = form.text("language", language);
+                }
+
+                client.post(endpoint).multipart(form)
+            };
+
+            if let Some(api_key) = api_key {
+                request = request.bearer_auth(api_key);
+            }
+
+            let response = request.send()?;
             let status = response.status();
             let body = response.text()?;
 
             if !status.is_success() {
+                error!(
+                    "Custom transcription endpoint returned {}: {}",
+                    status, body
+                );
                 return Err(anyhow::anyhow!(
                     "Custom transcription endpoint returned {}: {}",
                     status,
@@ -517,7 +577,9 @@ impl TranscriptionManager {
             }
 
             Ok(body.trim().to_string())
-        })();
+        })
+        .join()
+        .map_err(|_| anyhow::anyhow!("Custom transcription request thread panicked"))?;
 
         let _ = std::fs::remove_file(path);
         result

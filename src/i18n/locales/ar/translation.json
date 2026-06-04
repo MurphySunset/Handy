@@ -337,11 +337,13 @@
       },
       "customTranscription": {
         "title": "نقطة نهاية مخصصة",
-        "description": "استخدم نقطة نهاية نسخ محلية متوافقة مع OpenAI بدلاً من نموذج تم تنزيله.",
+        "description": "Use an OpenAI-compatible transcription endpoint (for example OpenRouter) instead of a downloaded model.",
         "endpointLabel": "Endpoint URL",
-        "endpointPlaceholder": "http://127.0.0.1:8000/v1/audio/transcriptions",
+        "endpointPlaceholder": "https://openrouter.ai/api/v1/audio/transcriptions",
         "modelLabel": "Model",
-        "modelPlaceholder": "whisper-1"
+        "modelPlaceholder": "mistralai/voxtral-mini-transcribe",
+        "apiKeyLabel": "API key",
+        "apiKeyPlaceholder": "OpenRouter API key"
       }
     },
     "postProcessing": {
